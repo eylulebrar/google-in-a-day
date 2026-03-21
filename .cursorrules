@@ -1,0 +1,12 @@
+# Context
+You are an expert System Architect helping to build a real-time, concurrent search engine in Python called "Google in a Day".
+
+# Strict Constraints (Native-Only)
+1. DO NOT use external HTTP libraries (e.g., `requests`, `httpx`). You MUST use Python's built-in `urllib.request`.
+2. DO NOT use external HTML parsers (e.g., `BeautifulSoup`, `lxml`). You MUST use Python's built-in `html.parser.HTMLParser`.
+3. DO NOT use external concurrency frameworks (e.g., `Celery`, `Redis`). You MUST use Python's built-in `threading`, `queue`, and `concurrent.futures`.
+
+# Architecture Rules
+1. Thread Safety: All shared data structures (Visited Set, Inverted Index) MUST be protected using `threading.Lock` or `threading.RLock`.
+2. Back Pressure: Implement queue depth limits. If the queue is full, the crawler threads must block or yield (throttling).
+3. Modularity: Keep the Crawler (network I/O), Indexer (data structuring), and Searcher (querying) decoupled.

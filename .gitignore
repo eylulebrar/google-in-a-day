@@ -1,0 +1,13 @@
+# Python bytecode (Derlenmiş dosyalar)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments (Sanal ortamlar - Eğer venv kullandıysan)
+venv/
+env/
+.venv/
+
+# OS files (Sistem dosyaları)
+.DS_Store
+Thumbs.db
