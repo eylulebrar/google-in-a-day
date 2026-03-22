@@ -13,20 +13,24 @@ def main():
     print("      GOOGLE-IN-A-DAY: SYSTEM ORCHESTRATOR")
     print("="*55)
 
-    # 1. User Inputs & Configuration
-    seed = input("Enter Seed URL (Default: https://quotes.toscrape.com/): ").strip()
-    if not seed:
-        seed = "https://quotes.toscrape.com/"
+    # 1. User Inputs & Configuration (Updated for 'origin' and 'k')
+    origin = input("Enter Seed URL (origin) [Default: https://quotes.toscrape.com/]: ").strip()
+    if not origin:
+        origin = "https://quotes.toscrape.com/"
+        
+    k_input = input("Enter Max Crawl Depth (k) [Default: 2]: ").strip()
+    k = int(k_input) if k_input.isdigit() else 2
         
     resume_input = input("Resume from previous session snapshot? (y/n): ").lower().strip()
     resume_mode = True if resume_input == 'y' else False
 
-    print(f"\n[*] Initializing Engine for: {seed}")
-    print(f"[*] Configuration: Max Depth=2, Workers=5, Native-Only Mode=ON")
+    print(f"\n[*] Initializing Engine for origin: {origin}")
+    print(f"[*] Configuration: Max Depth (k)={k}, Workers=5, Native-Only Mode=ON")
     
     # 2. Initialize Engines
     # ConcurrencyManager handles Threading, Crawling & Persistence
-    manager = ConcurrencyManager(seed_url=seed, max_depth=2, num_workers=5, max_queue_size=200)
+    # Using 'origin' and 'k' to match the assignment requirements
+    manager = ConcurrencyManager(seed_url=origin, max_depth=k, num_workers=5, max_queue_size=200)
     
     # UI Dashboard for Metric Visualization
     dashboard = CLIDashboard()
@@ -97,9 +101,9 @@ def main():
                 else:
                     print(f"\n" + "*"*10 + f" Search Results for '{cmd}' " + "*"*10)
                     for idx, res in enumerate(results, 1):
-                        # res format: (url, origin, depth)
-                        print(f"{idx}. URL: {res[0]}")
-                        print(f"   Source: {res[1]} | Depth: {res[2]}")
+                        # res format is exactly the requested triple: (relevant_url, origin_url, depth)
+                        print(f"{idx}. Triple: {res}")
+                        print(f"   URL: {res[0]} | Source: {res[1]} | Depth: {res[2]}")
                     print("*" * (30 + len(cmd)) + "\n")
                     
         except KeyboardInterrupt:

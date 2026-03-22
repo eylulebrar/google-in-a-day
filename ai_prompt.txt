@@ -1,0 +1,18 @@
+#AI Prompt Document: Google-in-a-Day
+
+Act as a Senior Python Architect. We are building a lightweight, concurrent web crawler and real-time search engine from scratch.
+
+Strict Constraints:
+1. Use ONLY Python's native libraries (`urllib`, `html.parser`, `threading`, `queue`, `json`). Absolutely no external frameworks like Scrapy, Requests, or BeautifulSoup.
+2. The system must run entirely on localhost without requiring external database installations (use in-memory structures backed by JSON for persistence).
+
+Core API Requirements:
+1. `index(origin, k)`: Implement a web crawler starting from an `origin` URL, crawling up to depth `k`. Implement a thread-safe "Visited Set" to guarantee no duplicate page is crawled.
+2. `search(query)`: Implement a search function that can be invoked while the indexer is active (Live Indexing). It must return a list of triples in the exact format: `(relevant_url, origin_url, depth)`.
+
+Architectural Requirements:
+- Concurrency: Use the `threading` module to run multiple worker threads. Use `threading.Lock()` to prevent race conditions during concurrent read/write operations on the index.
+- Back-pressure: Implement load management using `queue.Queue` with a strictly defined `maxsize`. The crawler must throttle itself when the queue is full.
+- Relevancy: Use a Term Frequency (TF) heuristic to score and sort search results.
+- State Persistence: Implement a graceful shutdown that serializes the current queue, visited set, and index to a JSON file, allowing the system to resume later.
+- CLI Dashboard: Build a terminal UI displaying real-time metrics: indexing progress, queue depth, and back-pressure status.

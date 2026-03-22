@@ -1,35 +1,54 @@
-# Google-in-a-Day: Lightweight Concurrent Search Engine
+# Google-in-a-Day: Lightweight Search Engine
 
-This project is a high-performance, concurrent web crawler and real-time search engine built entirely from scratch using **only Python's native libraries**. It demonstrates architectural sensibility, thread safety, and back-pressure management under heavy network I/O.
+This is a concurrent web crawler and real-time search engine. It is built entirely from scratch using **only Python's native libraries**. It supports live searching, back-pressure management, and state persistence.
 
 ## 🚀 How to Run
 
-1. Clone the repository.
-2. Ensure you have Python 3.8+ installed (No external dependencies required).
-3. Run the main orchestrator:
+1. Clone the repository to your local machine.
+2. Ensure you have Python 3.8+ installed. No external packages are needed.
+3. Open a terminal and run the main file:
    ```bash
    python main.py
-4. Enter a Seed URL (e.g., https://quotes.toscrape.com/).
+4. Enter the origin URL.
+5. Enter the k (max depth) for the crawl limit.
+6. The crawler will start in the background. You can type stats to see the live dashboard or type any word to search the index while it is crawling. Type exit to save and close safely.
 
-5. The system will start crawling in the background. Type stats to see the live CLI Dashboard, or type any word to perform a Live Index Search.
 
-🏗️ System Architecture & AI Stewardship
-As the System Architect steering the AI agents, several critical design decisions were enforced to meet the strict project constraints:
 
-1. Native-Only Constraint
-No external high-level frameworks (like Scrapy, BeautifulSoup, or Requests) were used. The crawler network I/O is handled by urllib.request, and HTML parsing is done via a custom class extending html.parser.HTMLParser. This required implementing custom SSL bypass contexts to handle real-world certificate issues.
+## 📁 Project Structure
 
-2. Concurrency & Thread Safety
-The system uses Python's built-in threading module. To prevent data corruption during "Live Indexing" (where the Searcher reads the index while the Crawler writes to it), a strict threading.Lock() mechanism is implemented. This ensures thread-safe operations across the shared indexed_data dictionary.
+I divided the project into logical modules to keep the code clean and maintainable. Here is the complete breakdown of the repository:
 
-3. Back-Pressure & Queue Management
-To prevent memory leaks and uncontrolled crawling (OOM errors), a standard queue.Queue with a strictly defined maxsize is utilized. When the crawler finds links faster than the workers can process them, the queue.Full exception triggers our Throttling (Back-pressure) state. Worker threads are safely blocked without crashing the system, proving the architecture's resilience under load.
+* `core/` : Contains the main engines.
+  * `crawler.py` : Handles HTML parsing and URL extraction natively.
+  * `searcher.py` : Processes queries and returns the `(relevant_url, origin_url, depth)` format.
+* `utils/` : Contains system helpers.
+  * `concurrency.py` : Manages worker threads, locks, and the queue system.
+  * `persistence.py` : Handles saving and loading the system state.
+* `ui/` : Contains the user interface.
+  * `dashboard.py` : Prints the live system metrics table in the terminal.
+* `data/` : Directory for storing the `snapshot.json` persistence file.
+* `main.py` : The main orchestrator and Command Line Interface loop.
+* `ai_prompt.txt` : The initial AI prompt used to guide the project.
+* `product_prd.md` : The formal Product Requirements Document.
+* `recommendation.md` : Short roadmap for scaling this project to production.
+* `README.md` : The documentation file you are reading right now C: .
+* `.cursorrules` : Cursor IDE configuration file enforcing native-only coding constraints.
+* `.gitignore` : Git configuration file.
 
-4. Search & Relevancy Heuristic
-A straightforward "Term Frequency" (Bag of Words) approach is used for relevancy. The query is tokenized, and exact matches are rewarded. This simple heuristic fulfills the requirement without the overhead of complex NLP models, though it is intentionally susceptible to "stop-word inflation" from large pages (a trade-off accepted for performance).
 
-### 5. Persistence & Recovery (Bonus Achievement)
-The system features a robust **State Checkpointing** mechanism. Upon a graceful shutdown (using the `exit` command), the current state of the engine—including the `visited` set, the remaining `url_queue`, and the full `indexed_data`—is serialized and saved to `data/snapshot.json`. 
+## ⚙️ How the System Works (Key Features)
+### 1. Native Crawling (index(origin, k))
+The system takes an origin URL and crawls up to k depth. It uses a visited set to make sure it never crawls the same page twice. Everything is done using Python's standard libraries, bypassing SSL errors natively.
 
-- **Resumability:** On startup, the user is prompted to resume from the previous session. If selected, the engine reconstructs the memory state from the JSON snapshot, allowing the crawl to continue from the exact point it left off.
-- **Data Integrity:** This ensures that hours of crawling progress are not lost due to system restarts or manual interruptions.
+### 2. Concurrency & Thread Safety
+The engine uses 5 worker threads. To make "Live Indexing" possible (searching while crawling), I used threading.Lock(). This ensures that multiple workers can write to the index at the same time without data corruption.
+
+### 3. Back-Pressure (Queue Management)
+To prevent out-of-memory (OOM) errors and system crashes under heavy load, the URL queue has a strict maxsize of 200. If the queue is full, the system blocks new URLs from being added until workers process the existing ones. You can see this as the "ACTIVE (Back-pressure)" status in the stats dashboard.
+
+### 4. Live Search (search(query))
+You can search the index at any time. The system uses a basic Term Frequency (TF) heuristic to rank pages (pages where the word appears the most show up first). The results are returned as a list of triples: (relevant_url, origin_url, depth).
+
+### 5. Persistence & Recovery (Bonus)
+If you type exit, the system gracefully shuts down. It saves the current visited set, the url_queue, and the indexed_data to a local snapshot.json file. When you restart the program, you can choose to resume the crawl from the exact point you left off instead of starting from scratch.

@@ -11,8 +11,9 @@ class CLIDashboard:
     def display_metrics(self, processed_count, queue_depth, throttling_status, total_indexed):
         """Prints a formatted table of system metrics."""
         
-        # Throttling durumunu daha dikkat çekici yazalım
-        status_text = "ACTIVE (Back-pressure)" if throttling_status else "Normal / Stable"
+        # Eğer throttling True ise VEYA kuyruk limiti olan 200'e ulaşıldıysa uyarıyı ver
+        is_throttled = throttling_status or (queue_depth >= 200)
+        status_text = "ACTIVE (Back-pressure)" if is_throttled else "Normal / Stable"
         
         print("\n" + "="*20 + " SYSTEM DASHBOARD " + "="*20)
         print(f"{'Metric':<25} | {'Value':<25}")
