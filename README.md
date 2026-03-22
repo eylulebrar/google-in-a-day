@@ -32,7 +32,7 @@ I divided the project into logical modules to keep the code clean and maintainab
 * `ai_prompt.txt` : The initial AI prompt used to guide the project.
 * `product_prd.md` : The formal Product Requirements Document.
 * `recommendation.md` : Short roadmap for scaling this project to production.
-* `README.md` : The documentation file you are reading right now C: .
+* `README.md` : This documentation file.
 * `.cursorrules` : Cursor IDE configuration file enforcing native-only coding constraints.
 * `.gitignore` : Git configuration file.
 
