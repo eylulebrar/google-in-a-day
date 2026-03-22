@@ -32,7 +32,7 @@ I divided the project into logical modules to keep the code clean and maintainab
 * `ai_prompt.txt` : The initial AI prompt used to guide the project.
 * `product_prd.md` : The formal Product Requirements Document.
 * `recommendation.md` : Short roadmap for scaling this project to production.
-* `README.md` : This documentation file.
+* `README.md` : This documentation file C: .
 * `.cursorrules` : Cursor IDE configuration file enforcing native-only coding constraints.
 * `.gitignore` : Git configuration file.
 
@@ -50,5 +50,5 @@ To prevent out-of-memory (OOM) errors and system crashes under heavy load, the U
 ### 4. Live Search (search(query))
 You can search the index at any time. The system uses a basic Term Frequency (TF) heuristic to rank pages (pages where the word appears the most show up first). The results are returned as a list of triples: (relevant_url, origin_url, depth).
 
-### 5. Persistence & Recovery (Bonus)
+### 5. Persistence & Recovery
 If you type exit, the system gracefully shuts down. It saves the current visited set, the url_queue, and the indexed_data to a local snapshot.json file. When you restart the program, you can choose to resume the crawl from the exact point you left off instead of starting from scratch.
