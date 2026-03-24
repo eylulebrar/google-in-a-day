@@ -1,6 +1,13 @@
 import time
 import threading
 import logging
+import json
+import os
+import re
+from collections import Counter
+from urllib.parse import urlparse, parse_qs
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
 from utils.concurrency import ConcurrencyManager
 from core.searcher import QueryEngine
 from ui.dashboard import CLIDashboard
@@ -8,12 +15,52 @@ from ui.dashboard import CLIDashboard
 # Set logging to ERROR to keep the CLI clean from worker background warnings
 logging.getLogger().setLevel(logging.ERROR)
 
+# ==========================================
+# YENİ EKLENEN: NATIVE API SERVER (Port 3600)
+# ==========================================
+class NativeSearchAPI(BaseHTTPRequestHandler):
+    searcher_ref = None
+
+    def do_GET(self):
+        parsed_url = urlparse(self.path)
+        
+        if parsed_url.path == '/search':
+            qs = parse_qs(parsed_url.query)
+            query = qs.get('query', [''])[0]
+            
+            if query and self.searcher_ref:
+                results = self.searcher_ref.search(query, top_n=5)
+                
+                response_data = {
+                    "query": query,
+                    "results": results
+                }
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(response_data, indent=4).encode('utf-8'))
+            else:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b'{"error": "Missing query parameter"}')
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, format, *args):
+        pass
+
+
+# ==========================================
+# ANA SİSTEM
+# ==========================================
 def main():
     print("\n" + "="*55)
     print("      GOOGLE-IN-A-DAY: SYSTEM ORCHESTRATOR")
     print("="*55)
 
-    # 1. User Inputs & Configuration (Updated for 'origin' and 'k')
     origin = input("Enter Seed URL (origin) [Default: https://quotes.toscrape.com/]: ").strip()
     if not origin:
         origin = "https://quotes.toscrape.com/"
@@ -27,15 +74,9 @@ def main():
     print(f"\n[*] Initializing Engine for origin: {origin}")
     print(f"[*] Configuration: Max Depth (k)={k}, Workers=5, Native-Only Mode=ON")
     
-    # 2. Initialize Engines
-    # ConcurrencyManager handles Threading, Crawling & Persistence
-    # Using 'origin' and 'k' to match the assignment requirements
     manager = ConcurrencyManager(seed_url=origin, max_depth=k, num_workers=5, max_queue_size=200)
-    
-    # UI Dashboard for Metric Visualization
     dashboard = CLIDashboard()
     
-    # Start Crawler in a background daemon thread
     crawler_thread = threading.Thread(
         target=manager.start_crawling, 
         args=(resume_mode,), 
@@ -43,10 +84,22 @@ def main():
     )
     crawler_thread.start()
 
-    # QueryEngine shares references with the manager for Live Indexing
     searcher = QueryEngine(manager.indexed_data, manager.index_lock)
 
-    time.sleep(1) # Brief buffer for thread startup
+    # ---------------------------------------------------------
+    # API SUNUCUSUNU BAŞLATMA KISMI (Port 3600)
+    # ---------------------------------------------------------
+    NativeSearchAPI.searcher_ref = searcher
+    try:
+        api_server = HTTPServer(('', 3600), NativeSearchAPI)
+        api_thread = threading.Thread(target=api_server.serve_forever, daemon=True)
+        api_thread.start()
+        print("[+] Native API Server listening on http://localhost:3600")
+    except Exception as e:
+        print(f"[-] Could not start API server on port 3600: {e}")
+    # ---------------------------------------------------------
+
+    time.sleep(1) 
     
     print("\n[+] System is running in background. Live Indexing active.")
     print("-" * 60)
@@ -56,17 +109,20 @@ def main():
     print(" - [Word]  : Type any phrase to search the live index")
     print("-" * 60 + "\n")
 
-    # 3. CLI Interaction Loop
+    searched_words = set()
+    
     while True:
         try:
             cmd = input("Search Query > ").strip()
             if not cmd:
                 continue
                 
+            if cmd.lower() not in ['exit', 'stats']:
+                searched_words.add(cmd.lower())
+                
             if cmd.lower() == 'exit':
                 print("\n[!] Graceful shutdown initiated...")
                 
-                # FORCE SAVE: Save the current progress and queue before exiting
                 current_queue = list(manager.url_queue.queue)
                 success = manager.persistence.save_state(
                     manager.crawler.visited, 
@@ -78,10 +134,36 @@ def main():
                     print("[Snapshot] System state successfully saved to data/snapshot.json")
                 else:
                     print("[Error] Failed to save system state.")
+                    
+                try:
+                    if searched_words: 
+                        os.makedirs("data/storage", exist_ok=True)
+                        with open("data/storage/p.data", "w", encoding="utf-8") as f:
+                            for url, page_data in manager.indexed_data.items():
+                                if isinstance(page_data, dict):
+                                    text = page_data.get('text', '')
+                                    origin_url = page_data.get('origin', 'unknown')
+                                    depth = page_data.get('depth', 0)
+                                    
+                                    if isinstance(text, str) and text:
+                                        words = re.findall(r'\b\w+\b', text.lower())
+                                        word_counts = Counter(words)
+                                        
+                                        for word in searched_words:
+                                            if word in word_counts:
+                                                freq = word_counts[word]
+                                                f.write(f"{word} {url} {origin_url} {depth} {freq}\n")
+                                                
+                        print(f"[+] Exported data for your searches ({', '.join(searched_words)}) to p.data")
+                    else:
+                        print("[-] No searches made this session. Skipping p.data export.")
+                        
+                except Exception as e:
+                    print(f"[-] Could not export p.data: {e}")
+                    
                 break
                 
             elif cmd.lower() == 'stats':
-                # Use the CLIDashboard module for modular visualization
                 with manager.stats_lock:
                     stats = manager.stats
                 q_size = manager.url_queue.qsize()
@@ -94,16 +176,15 @@ def main():
                 )
                 
             else:
-                # Perform Live Index Search
                 results = searcher.search(cmd, top_n=5)
                 if not results:
                     print(f"[-] '{cmd}' not found in current index. Crawling continues...\n")
                 else:
                     print(f"\n" + "*"*10 + f" Search Results for '{cmd}' " + "*"*10)
                     for idx, res in enumerate(results, 1):
-                        # res format is exactly the requested triple: (relevant_url, origin_url, depth)
-                        print(f"{idx}. Triple: {res}")
-                        print(f"   URL: {res[0]} | Source: {res[1]} | Depth: {res[2]}")
+                        # Artık res bir dictionary, key'ler ile çağırıyoruz
+                        print(f"{idx}. {res['title']}")
+                        print(f"   URL: {res['relevant_url']} | Source: {res['origin_url']} | Depth: {res['depth']} | Score: {res['score']}")
                     print("*" * (30 + len(cmd)) + "\n")
                     
         except KeyboardInterrupt:
