@@ -176,15 +176,17 @@ def main():
                 )
                 
             else:
+                # Perform Live Index Search
                 results = searcher.search(cmd, top_n=5)
                 if not results:
                     print(f"[-] '{cmd}' not found in current index. Crawling continues...\n")
                 else:
                     print(f"\n" + "*"*10 + f" Search Results for '{cmd}' " + "*"*10)
                     for idx, res in enumerate(results, 1):
-                        # Artık res bir dictionary, key'ler ile çağırıyoruz
-                        print(f"{idx}. {res['title']}")
-                        print(f"   URL: {res['relevant_url']} | Source: {res['origin_url']} | Depth: {res['depth']} | Score: {res['score']}")
+                        # CLI ekranında PRD kuralına sadık kalarak sadece Triple basıyoruz.
+                        # Score ve Title arka planda JSON objesinde yaşamaya devam ediyor.
+                        print(f"{idx}. Triple: ('{res['relevant_url']}', '{res['origin_url']}', {res['depth']})")
+                        print(f"   URL: {res['relevant_url']} | Source: {res['origin_url']} | Depth: {res['depth']}")
                     print("*" * (30 + len(cmd)) + "\n")
                     
         except KeyboardInterrupt:
